@@ -31,17 +31,17 @@ export VCPKG_TOOLCHAIN_PATH=`pwd`/vcpkg/scripts/buildsystems/vcpkg.cmake
 ## 2. Building MobilityDuck
 ### Clone the repository
 ```sh
-git clone --recurse-submodules https://github.com/nhungoc1508/mobilityduck.git
+git clone --recurse-submodules https://github.com/MobilityDB/MobilityDuck.git
 ```
 Note that `--recurse-submodules` will ensure DuckDB is pulled which is required to build the extension.
 
 ### Build steps
-To build the extension, from the root directory (`mobilityduck`), run (for first build):
+To build the extension, from the root directory (`mobilityduck`), run:
 ```sh
 make
 ```
 
-For subsequent builds, use `ninja` for faster build relying on cache:
+Or use `ninja` for faster build (subsequent builds after the first build) relying on cache:
 ```sh
 GEN=ninja make
 ```
