@@ -45,6 +45,23 @@ Or use `ninja` for faster build (subsequent builds after the first build) relyin
 ```sh
 GEN=ninja make
 ```
+
+> [!IMPORTANT]
+> If the ```make``` command produces CMake error, go to the vcpkg repository and reset to an earlier commit:
+> ```bash
+> cd ..
+> cd vcpkg
+> git reset --hard 50c0cb48a0
+> ```
+> Then in the MobilityDuck repository, clear the last build and try again:
+> ```bash
+> cd ..
+> cd MobilityDuck
+> make clean
+> GEN=ninja make
+> ```
+> This error is due to new changes in vcpkg, and this is a temporary fix.
+
 The main binaries that will be built are:
 ```sh
 ./build/release/duckdb
