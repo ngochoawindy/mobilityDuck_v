@@ -32,6 +32,9 @@ struct TemporalFunctions {
     /* ***************************************************
      * Constructor functions
      ****************************************************/
+    template <typename T>
+    static void Tinstant_constructor_common(Vector &value, Vector &ts, Vector &result, idx_t count);
+    static void Tinstant_constructor_text(Vector &value, Vector &ts, Vector &result, idx_t count);
     static void Tinstant_constructor(DataChunk &args, ExpressionState &state, Vector &result);
     static void Tsequence_constructor(DataChunk &args, ExpressionState &state, Vector &result);
     static void Tsequenceset_constructor(DataChunk &args, ExpressionState &state, Vector &result);

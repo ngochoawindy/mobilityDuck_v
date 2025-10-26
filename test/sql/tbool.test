@@ -13,6 +13,11 @@ SELECT tbool(true, timestamptz '2012-01-01 08:00:00');
 t@2012-01-01 08:00:00+00
 
 query I
+SELECT tbool(false, timestamptz '2012-01-01 08:00:00');
+----
+f@2012-01-01 08:00:00+00
+
+query I
 SELECT tempSubtype(tbool 't@2000-01-01');
 ----
 Instant

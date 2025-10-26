@@ -116,14 +116,21 @@ bool TemporalFunctions::Temporal_out(Vector &source, Vector &result, idx_t count
  * Constructor functions
  ****************************************************/
 
-void TemporalFunctions::Tinstant_constructor(DataChunk &args, ExpressionState &state, Vector &result) {
-    BinaryExecutor::Execute<int64_t, timestamp_tz_t, string_t>(
-        args.data[0], args.data[1], result, args.size(),
-        [&](int64_t value, timestamp_tz_t ts) {
+template <typename T>
+void TemporalFunctions::Tinstant_constructor_common(Vector &value, Vector &ts, Vector &result, idx_t count) {
+    BinaryExecutor::Execute<T, timestamp_tz_t, string_t>(
+        value, ts, result, count,
+        [&](T value, timestamp_tz_t ts) {
             meosType temptype = TemporalHelpers::GetTemptypeFromAlias(result.GetType().GetAlias().c_str());
             timestamp_tz_t meos_ts = DuckDBToMeosTimestamp(ts);
 
-            TInstant *inst = tinstant_make((Datum)value, temptype, (TimestampTz)meos_ts.value);
+            Datum datum;
+            if (temptype == T_TFLOAT) {
+                datum = Float8GetDatum(value);
+            } else {
+                datum = (Datum)value;
+            }
+            TInstant *inst = tinstant_make(datum, temptype, (TimestampTz)meos_ts.value);
             Temporal *temp = (Temporal*)inst;
 
             size_t temp_size = temporal_mem_size(temp);
@@ -136,8 +143,51 @@ void TemporalFunctions::Tinstant_constructor(DataChunk &args, ExpressionState &s
             return stored_data;
         }
     );
-    if (args.size() == 1) {
+    if (count == 1) {
         result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
+void TemporalFunctions::Tinstant_constructor_text(Vector &value, Vector &ts, Vector &result, idx_t count) {
+    BinaryExecutor::Execute<string_t, timestamp_tz_t, string_t>(
+        value, ts, result, count,
+        [&](string_t value, timestamp_tz_t ts) {
+            meosType temptype = TemporalHelpers::GetTemptypeFromAlias(result.GetType().GetAlias().c_str());
+            timestamp_tz_t meos_ts = DuckDBToMeosTimestamp(ts);
+
+            std::string str = value.GetString();
+            text *txt = cstring2text(str.c_str());
+            TInstant *inst = ttextinst_make(txt, (TimestampTz)meos_ts.value);
+            Temporal *temp = (Temporal*)inst;
+
+            size_t temp_size = temporal_mem_size(temp);
+            uint8_t *temp_data = (uint8_t*)malloc(temp_size);
+            memcpy(temp_data, temp, temp_size);
+            string_t output(reinterpret_cast<char*>(temp_data), temp_size);
+            string_t stored_data = StringVector::AddStringOrBlob(result, output);
+
+            free(temp);
+            return stored_data;
+        }
+    );
+    if (count == 1) {
+        result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
+void TemporalFunctions::Tinstant_constructor(DataChunk &args, ExpressionState &state, Vector &result) {
+    const auto &arg_type = args.data[0].GetType();
+
+    if (arg_type.id() == LogicalTypeId::VARCHAR) {
+        Tinstant_constructor_text(args.data[0], args.data[1], result, args.size());
+    } else if (arg_type.id() == LogicalTypeId::DOUBLE || arg_type.id() == LogicalTypeId::FLOAT) {
+        Tinstant_constructor_common<double>(args.data[0], args.data[1], result, args.size());
+    } else if (arg_type.id() == LogicalTypeId::BOOLEAN) {
+        Tinstant_constructor_common<bool>(args.data[0], args.data[1], result, args.size());
+    } else if (arg_type.id() == LogicalTypeId::INTEGER || arg_type.id() == LogicalTypeId::BIGINT || arg_type.id() == LogicalTypeId::SMALLINT || arg_type.id() == LogicalTypeId::TINYINT) {
+        Tinstant_constructor_common<int64_t>(args.data[0], args.data[1], result, args.size());
+    } else {
+        throw InvalidInputException("Invalid argument type for Tinstant_constructor: " + arg_type.ToString());
     }
 }
 

@@ -24,7 +24,7 @@ typedef struct {
 static const basetype_struct BASE_TYPES[] = {
     {"TINT", LogicalType::BIGINT},
     {"TBOOL", LogicalType::BOOLEAN},
-    {"TFLOAT", LogicalType::FLOAT},
+    {"TFLOAT", LogicalType::DOUBLE},
     {"TTEXT", LogicalType::VARCHAR}
 };
 

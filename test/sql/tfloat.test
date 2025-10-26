@@ -1,0 +1,16 @@
+require mobilityduck
+
+query I
+SELECT tfloat(1, timestamptz '2012-01-01 08:00:00');
+----
+1@2012-01-01 08:00:00+00
+
+query I
+SELECT tfloat(1.5, timestamptz '2012-01-01 08:00:00');
+----
+1.5@2012-01-01 08:00:00+00
+
+query I
+SELECT '1.5@2025-01-01'::TFLOAT as tfloat;
+----
+1.5@2025-01-01 00:00:00+00

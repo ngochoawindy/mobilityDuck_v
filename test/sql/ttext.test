@@ -1,0 +1,36 @@
+require mobilityduck
+
+query I
+SELECT ttext('AAA', timestamptz '2001-01-01 08:00:00');
+----
+"AAA"@2001-01-01 08:00:00+00
+
+query I
+SELECT ttextSeq(ARRAY[
+    ttext('A', timestamptz '2012-01-01 08:00:00'),
+    ttext('B', timestamptz '2012-01-01 08:10:00'),
+    ttext('C', timestamptz '2012-01-01 08:20:00')
+], 'discrete');
+----
+{"A"@2012-01-01 08:00:00+00, "B"@2012-01-01 08:10:00+00, "C"@2012-01-01 08:20:00+00}
+
+query I
+SELECT ttextSeq(ARRAY[
+    'A@2012-01-01 08:00:00'::ttext,
+    'B@2012-01-01 08:10:00'::ttext,
+    'C@2012-01-01 08:20:00'::ttext
+], 'discrete');
+----
+{"A"@2012-01-01 08:00:00+00, "B"@2012-01-01 08:10:00+00, "C"@2012-01-01 08:20:00+00}
+
+query I
+SELECT ttextSeq(ARRAY['A@2025-01-01 08:00:00'::TTEXT]) as ttext_seq;
+----
+["A"@2025-01-01 08:00:00+00]
+
+query I
+SELECT ttextSeq(ARRAY[
+    ttext('A', timestamptz '2025-01-01 08:00:00')
+]) as ttext_seq;
+----
+["A"@2025-01-01 08:00:00+00]
