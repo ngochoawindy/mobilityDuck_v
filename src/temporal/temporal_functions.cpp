@@ -1206,9 +1206,9 @@ void TemporalFunctions::Temporal_at_tstzspan(DataChunk &args, ExpressionState &s
 }
 
 void TemporalFunctions::Temporal_at_tstzspanset(DataChunk &args, ExpressionState &state, Vector &result) {
-    BinaryExecutor::Execute<string_t, string_t, string_t>(
+    BinaryExecutor::ExecuteWithNulls<string_t, string_t, string_t>(
         args.data[0], args.data[1], result, args.size(),
-        [&](string_t temp_str, string_t spanset_str) {
+        [&](string_t temp_str, string_t spanset_str, ValidityMask &mask, idx_t idx) {
             const uint8_t *data = reinterpret_cast<const uint8_t*>(temp_str.GetData());
             size_t data_size = temp_str.GetSize();
             if (data_size < sizeof(void*)) {
@@ -1233,7 +1233,9 @@ void TemporalFunctions::Temporal_at_tstzspanset(DataChunk &args, ExpressionState
 
             Temporal *ret = temporal_restrict_tstzspanset(temp, spanset, true);
             if (!ret) {
-                throw InternalException("Failure in TemporalAtTstzspanset: unable to cast string to temporal");
+                free(temp);
+                free(spanset);
+                mask.SetInvalid(idx);
                 return string_t();
             }
             size_t temp_size = temporal_mem_size(ret);
@@ -1338,6 +1340,9 @@ void TemporalFunctions::Temporal_dump_common(DataChunk &args, Vector &result, me
         Datum *extracted_values = temporal_values(temp, &elem_count);
         Temporal *temp_copy = temporal_copy(temp);
 
+        values.clear();
+        times.clear();
+
         for (idx_t i = 0; i < elem_count; i++) {
             Datum val = extracted_values[i];
 
@@ -1363,6 +1368,8 @@ void TemporalFunctions::Temporal_dump_common(DataChunk &args, Vector &result, me
             memcpy(spanset_data, time_spanset, spanset_size);
             string_t spanset_str(reinterpret_cast<const char*>(spanset_data), spanset_size);
             times.push_back(spanset_str);
+            free(time_spanset);
+            free(rest);
         }
 
         auto result_entries = ListVector::GetData(result);
@@ -1388,6 +1395,9 @@ void TemporalFunctions::Temporal_dump_common(DataChunk &args, Vector &result, me
             val_data[val_offset + i] = values[i];
             time_data[val_offset + i] = times[i];
         }
+        free(temp_copy);
+        free(extracted_values);
+        free(temp);
     }
     if (count == 1) {
         result.SetVectorType(VectorType::CONSTANT_VECTOR);
