@@ -55,6 +55,7 @@ struct TgeompointFunctions {
     static void Tpoint_trajectory(DataChunk &args, ExpressionState &state, Vector &result);
     // static void Tpoint_trajectory_gs(DataChunk &args, ExpressionState &state, Vector &result);
     static void Tgeo_at_geom(DataChunk &args, ExpressionState &state, Vector &result);
+    static void Tspatial_transform(DataChunk &args, ExpressionState &state, Vector &result);
 
     /* ***************************************************
      * Spatial relationships

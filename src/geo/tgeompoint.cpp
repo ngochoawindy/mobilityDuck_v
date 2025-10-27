@@ -272,6 +272,16 @@ void TgeompointType::RegisterScalarFunctions(DatabaseInstance &instance) {
         )
     );
 
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "transform",
+            {TGEOMPOINT(), LogicalType::INTEGER},
+            TGEOMPOINT(),
+            TgeompointFunctions::Tspatial_transform
+        )
+    );
+
     /* ***************************************************
      * Spatial relationships
      ****************************************************/
