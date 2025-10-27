@@ -102,6 +102,7 @@ static void LoadInternal(DatabaseInstance &instance) {
 	TemporalTypes::RegisterTypes(instance);
 	TemporalTypes::RegisterCastFunctions(instance);
 	TemporalTypes::RegisterScalarFunctions(instance);
+	TemporalTypes::RegisterTemporalUnnestFunction(instance);
 
 	TboxType::RegisterType(instance);
 	TboxType::RegisterCastFunctions(instance);

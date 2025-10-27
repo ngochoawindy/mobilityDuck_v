@@ -40,6 +40,7 @@ struct TemporalTypes {
     static void RegisterTypes(DatabaseInstance &db);
     static void RegisterCastFunctions(DatabaseInstance &db);
     static void RegisterScalarFunctions(DatabaseInstance &db);
+    static void RegisterTemporalUnnestFunction(DatabaseInstance &db);
 };
 
 } // namespace duckdb

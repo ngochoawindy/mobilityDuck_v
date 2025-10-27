@@ -39,8 +39,13 @@ DatumGetFloat8(Datum X)
   return myunion.retval;
 }
 
+#define DatumGetInt32(X) ((int32) (X))
+#define DatumGetInt64(X) ((int64) (X))
+#define DatumGetCString(X) ((char *) DatumGetPointer(X))
 #define CStringGetDatum(X) PointerGetDatum(X)
+#define DatumGetPointer(X) ((Pointer) (X))
 #define PointerGetDatum(X) ((Datum) (X))    
+#define DatumGetTextP(X)      ((text *) DatumGetPointer(X)) // ((text *) PG_DETOAST_DATUM(X))
 #define SET_VARSIZE(PTR, len)        SET_VARSIZE_4B(PTR, len)
 #define SET_VARSIZE_4B(PTR,len) \
   (((varattrib_4b *) (PTR))->va_4byte.va_header = (((uint32) (len)) << 2))

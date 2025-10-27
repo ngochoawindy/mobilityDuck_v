@@ -112,6 +112,44 @@ bool TemporalFunctions::Temporal_out(Vector &source, Vector &result, idx_t count
     return success;
 }
 
+bool TemporalFunctions::Composite_out(Vector &source, Vector &result, idx_t count, CastParameters &parameters) {
+    source.Flatten(count);
+    auto &children = StructVector::GetEntries(source);
+    auto &value_child = children[0];
+    auto &time_child = children[1];
+
+    for (idx_t i = 0; i < count; i++) {
+        string_t value_str = value_child->GetValue(i).ToString();
+
+        // string_t spanset_str = time_child->GetValue(i);
+        // SpanSet *spanset = nullptr;
+        // if (spanset_str.GetSize() > 0) {
+        //     spanset = (SpanSet*)malloc(spanset_str.GetSize());
+        //     memcpy(spanset, spanset_str.GetData(), spanset_str.GetSize());
+        // }
+        // if (!spanset) {
+        //     throw InternalException("Failure in Composite_out: unable to reconstruct spanset");
+        // }
+        // char *cstr = spanset_out(spanset, 15);
+
+        std::string result_str = "{value: " + value_str.GetString() + "}";
+        string_t stored_data = StringVector::AddStringOrBlob(result, result_str);
+        result.SetValue(i, stored_data);
+    }
+    return true;
+}
+
+bool TemporalFunctions::Blob_to_tstzspanset(Vector &source, Vector &result, idx_t count, CastParameters &parameters) {
+    bool success = true;
+    UnaryExecutor::Execute<string_t, string_t>(
+        source, result, count,
+        [&](string_t input_blob) {
+            return StringVector::AddStringOrBlob(result, input_blob);
+        }
+    );
+    return success;
+}
+
 /* ***************************************************
  * Constructor functions
  ****************************************************/
@@ -1216,7 +1254,7 @@ void TemporalFunctions::Temporal_at_tstzspanset(DataChunk &args, ExpressionState
 }
 
 /* ***************************************************
- * Restriction functions
+ * Boolean operators
  ****************************************************/
 
 void TemporalFunctions::Tbool_when_true(DataChunk &args, ExpressionState &state, Vector &result) {
@@ -1255,6 +1293,132 @@ void TemporalFunctions::Tbool_when_true(DataChunk &args, ExpressionState &state,
     );
     if (args.size() == 1) {
         result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
+/* ***************************************************
+ * Workaround functions
+ ****************************************************/
+
+template <typename T>
+void TemporalFunctions::Temporal_dump_common(DataChunk &args, Vector &result, meosType basetype) {
+    auto count = args.size();
+    auto &temp_vec = args.data[0];
+    UnifiedVectorFormat temp_format;
+    temp_vec.ToUnifiedFormat(count, temp_format);
+
+    idx_t total_temp_count = 0;
+
+    vector<T> values;
+    vector<string_t> times;
+
+    for (idx_t out_row_idx = 0; out_row_idx < count; out_row_idx++) {
+        auto in_row_idx = temp_format.sel->get_index(out_row_idx);
+
+        if (!temp_format.validity.RowIsValid(in_row_idx)) {
+            FlatVector::SetNull(result, out_row_idx, true);
+            continue;
+        }
+
+        string_t blob = UnifiedVectorFormat::GetData<string_t>(temp_format)[in_row_idx];
+        const uint8_t *data = reinterpret_cast<const uint8_t*>(blob.GetData());
+        size_t data_size = blob.GetSize();
+        if (data_size < sizeof(void*)) {
+            throw InvalidInputException("Invalid Temporal data: insufficient size");
+        }
+        uint8_t *data_copy = (uint8_t*)malloc(data_size);
+        memcpy(data_copy, data, data_size);
+        Temporal *temp = reinterpret_cast<Temporal*>(data_copy);
+        if (!temp) {
+            free(data_copy);
+            throw InternalException("Failure in Temporal_dump: unable to cast string to temporal");
+        }
+
+        int32_t elem_count;
+        Datum *extracted_values = temporal_values(temp, &elem_count);
+        Temporal *temp_copy = temporal_copy(temp);
+
+        for (idx_t i = 0; i < elem_count; i++) {
+            Datum val = extracted_values[i];
+
+            if constexpr (std::is_same_v<T, int32_t>) {
+                int32_t actual_value = DatumGetInt32(val);
+                values.push_back(actual_value);
+            } else if constexpr (std::is_same_v<T, int64_t>) {
+                int64_t actual_value = DatumGetInt64(val);
+                values.push_back(actual_value);
+            } else if constexpr (std::is_same_v<T, double>) {
+                double actual_value = DatumGetFloat8(val);
+                values.push_back(actual_value);
+            } else if constexpr (std::is_same_v<T, string_t>) {
+                text *txt = DatumGetTextP(val);
+                char *actual_value = text2cstring(txt);
+                values.push_back(string_t(actual_value));
+            }
+
+            Temporal *rest = temporal_restrict_value(temp_copy, extracted_values[i], true);
+            SpanSet *time_spanset = temporal_time(rest);
+            size_t spanset_size = spanset_mem_size(time_spanset);
+            uint8_t *spanset_data = (uint8_t *)malloc(spanset_size);
+            memcpy(spanset_data, time_spanset, spanset_size);
+            string_t spanset_str(reinterpret_cast<const char*>(spanset_data), spanset_size);
+            times.push_back(spanset_str);
+        }
+
+        auto result_entries = ListVector::GetData(result);
+        auto val_offset = total_temp_count;
+        auto val_length = values.size();
+
+        result_entries[out_row_idx].length = val_length;
+        result_entries[out_row_idx].offset = val_offset;
+
+        total_temp_count += val_length;
+
+        ListVector::Reserve(result, total_temp_count);
+        ListVector::SetListSize(result, total_temp_count);
+
+        auto &result_list = ListVector::GetEntry(result);
+        auto &result_list_children = StructVector::GetEntries(result_list);
+        auto &result_val_vec = result_list_children[0];
+        auto &result_time_vec = result_list_children[1];
+
+        auto val_data = FlatVector::GetData<T>(*result_val_vec);
+        auto time_data = FlatVector::GetData<string_t>(*result_time_vec);
+        for (idx_t i = 0; i < val_length; i++) {
+            val_data[val_offset + i] = values[i];
+            time_data[val_offset + i] = times[i];
+        }
+    }
+    if (count == 1) {
+        result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
+void TemporalFunctions::Temporal_dump(DataChunk &args, ExpressionState &state, Vector &result) {
+    // const auto &basetype = args.data[0].GetType();
+    LogicalType base_struct_type = ListType::GetChildType(result.GetType());
+    const auto &basetype = StructType::GetChildType(base_struct_type, 0);
+
+    switch (basetype.id()) {
+        case LogicalTypeId::INTEGER: {
+            Temporal_dump_common<int32_t>(args, result, T_INT4);
+            break;
+        }
+        case LogicalTypeId::BIGINT: {
+            Temporal_dump_common<int64_t>(args, result, T_INT8);
+            break;
+    }
+        case LogicalTypeId::DOUBLE: {
+            Temporal_dump_common<double>(args, result, T_FLOAT8);
+            break;
+        }
+        case LogicalTypeId::VARCHAR: {
+            Temporal_dump_common<string_t>(args, result, T_TEXT);
+            break;
+        }
+        default: {
+            throw NotImplementedException("Temporal dump: unsupported base type");
+        }
     }
 }
 

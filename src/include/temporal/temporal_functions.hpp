@@ -28,6 +28,8 @@ struct TemporalFunctions {
      ****************************************************/
     static bool Temporal_in(Vector &source, Vector &result, idx_t count, CastParameters &parameters);
     static bool Temporal_out(Vector &source, Vector &result, idx_t count, CastParameters &parameters);
+    static bool Composite_out(Vector &source, Vector &result, idx_t count, CastParameters &parameters);
+    static bool Blob_to_tstzspanset(Vector &source, Vector &result, idx_t count, CastParameters &parameters);
 
     /* ***************************************************
      * Constructor functions
@@ -85,6 +87,13 @@ struct TemporalFunctions {
      * Boolean operators
      ****************************************************/
     static void Tbool_when_true(DataChunk &args, ExpressionState &state, Vector &result);
+
+    /* ***************************************************
+     * Workaround functions
+     ****************************************************/
+    template <typename T>
+    static void Temporal_dump_common(DataChunk &args, Vector &result, meosType basetype);
+    static void Temporal_dump(DataChunk &args, ExpressionState &state, Vector &result);
 };
 
 } // namespace duckdb
