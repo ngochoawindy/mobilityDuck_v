@@ -391,6 +391,16 @@ void TemporalTypes::RegisterScalarFunctions(DatabaseInstance &instance) {
         ExtensionUtil::RegisterFunction(
             instance,
             ScalarFunction(
+                "timestamps",
+                {type},
+                LogicalType::LIST(LogicalType::TIMESTAMP_TZ),
+                TemporalFunctions::Temporal_timestamps
+            )
+        );
+
+        ExtensionUtil::RegisterFunction(
+            instance,
+            ScalarFunction(
                 "instants",
                 {type},
                 LogicalType::LIST(type),

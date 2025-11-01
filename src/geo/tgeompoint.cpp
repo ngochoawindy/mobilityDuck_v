@@ -195,6 +195,20 @@ void TgeompointType::RegisterScalarFunctions(DatabaseInstance &instance) {
     );
 
     /* ***************************************************
+    * Accessor functions
+    ****************************************************/
+
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "timestamps",
+            {TGEOMPOINT()},
+            LogicalType::LIST(LogicalType::TIMESTAMP_TZ),
+            TemporalFunctions::Temporal_timestamps
+        )
+    );
+
+    /* ***************************************************
      * Restriction functions
      ****************************************************/
 

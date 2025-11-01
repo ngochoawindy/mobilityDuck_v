@@ -66,6 +66,7 @@ struct TemporalFunctions {
     static void Temporal_duration(DataChunk &args, ExpressionState &state, Vector &result);
     static void Temporal_sequences(DataChunk &args, ExpressionState &state, Vector &result);
     static void Temporal_start_timestamptz(DataChunk &args, ExpressionState &state, Vector &result);
+    static void Temporal_timestamps(DataChunk &args, ExpressionState &state, Vector &result);
     static void Temporal_instants(DataChunk &args, ExpressionState &state, Vector &result);
 
     /* ***************************************************
