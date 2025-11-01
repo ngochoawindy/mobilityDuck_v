@@ -33,6 +33,7 @@ struct TgeompointFunctions {
     static void Tgeompoint_end_value(DataChunk &args, ExpressionState &state, Vector &result);
     // duration: Temporal_duration
     // startTimestamp: Temporal_start_timestamptz
+    static void Tgeompoint_sequence_constructor(DataChunk &args, ExpressionState &state, Vector &result);
 
     /* ***************************************************
      * Conversion functions

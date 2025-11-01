@@ -87,7 +87,7 @@ bool TemporalFunctions::Temporal_out(Vector &source, Vector &result, idx_t count
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input_blob.GetData());
             size_t data_size = input_blob.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_out] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -241,7 +241,7 @@ void TemporalFunctions::Tsequence_constructor(DataChunk &args, ExpressionState &
     interpType interp = temptype_continuous(temptype) ? LINEAR : STEP;
     bool lower_inc = true;
     bool upper_inc = true;
-
+    
     if (arg_count > 1) {
         auto &interp_child = args.data[1];
         interp_child.Flatten(row_count);
@@ -265,17 +265,38 @@ void TemporalFunctions::Tsequence_constructor(DataChunk &args, ExpressionState &
         [&](const list_entry_t &list) {
             auto offset = list.offset;
             auto length = list.length;
-            TInstant **instants = (TInstant **)malloc(length * sizeof(TInstant *));
-            if (!instants) {
-                throw InternalException("Memory allocation failed in TsequenceConstructor");
-            }
+            
+            int32_t valid_count = 0;
             for (idx_t i = 0; i < length; i++) {
                 idx_t child_idx = offset + i;
                 auto wkb_data = child_data[child_idx];
                 size_t data_size = wkb_data.GetSize();
                 if (data_size < sizeof(void*)) {
-                    free(instants);
-                    throw InvalidInputException("Invalid Temporal data: insufficient size");
+                    continue;
+                }
+                if (wkb_data.GetData() == nullptr) {
+                    continue;
+                }
+                if (wkb_data.GetDataUnsafe() == nullptr) {
+                    continue;
+                }
+                if (data_size > 0) {
+                    valid_count++;
+                }
+            }
+
+            TInstant **instants = (TInstant **)malloc(valid_count * sizeof(TInstant *));
+            if (!instants) {
+                throw InternalException("Memory allocation failed in TsequenceConstructor");
+            }
+
+            idx_t valid_idx = 0;
+            for (idx_t i = 0; i < length; i++) {
+                idx_t child_idx = offset + i;
+                auto wkb_data = child_data[child_idx];
+                size_t data_size = wkb_data.GetSize();
+                if (data_size < sizeof(void*)) {
+                    continue;
                 }
                 uint8_t *data_copy = (uint8_t*)malloc(data_size);
                 memcpy(data_copy, wkb_data.GetData(), data_size);
@@ -284,13 +305,14 @@ void TemporalFunctions::Tsequence_constructor(DataChunk &args, ExpressionState &
                     free(instants);
                     throw InternalException("Failure in TsequenceConstructor: unable to convert WKB to temporal");
                 }
-                instants[i] = (TInstant*)temp;
+                instants[valid_idx] = (TInstant*)temp;
+                valid_idx++;
             }
 
-            TSequence *seq = tsequence_make((const TInstant **)instants, length,
+            TSequence *seq = tsequence_make((const TInstant **)instants, valid_count,
                 lower_inc, upper_inc, interp, true);
             if (!seq) {
-                for (idx_t j = 0; j < length; j++) {
+                for (idx_t j = 0; j < valid_count; j++) {
                     free(instants[j]);
                 }
                 free(instants);
@@ -303,7 +325,7 @@ void TemporalFunctions::Tsequence_constructor(DataChunk &args, ExpressionState &
             string_t result_str(reinterpret_cast<char*>(temp_data), temp_size);
             string_t stored_data = StringVector::AddStringOrBlob(result, result_str);
             free(seq);
-            for (idx_t j = 0; j < length; j++) {
+            for (idx_t j = 0; j < valid_count; j++) {
                 free(instants[j]);
             }
             free(instants);
@@ -342,7 +364,7 @@ void TemporalFunctions::Tsequenceset_constructor(DataChunk &args, ExpressionStat
                 size_t data_size = wkb_data.GetSize();
                 if (data_size < sizeof(void*)) {
                     free(sequences);
-                    throw InvalidInputException("Invalid Temporal data: insufficient size");
+                    throw InvalidInputException("[Tsequenceset_constructor] Invalid Temporal data: insufficient size");
                 }
                 uint8_t *data_copy = (uint8_t*)malloc(data_size);
                 memcpy(data_copy, wkb_data.GetData(), data_size);
@@ -392,7 +414,7 @@ void TemporalFunctions::Temporal_to_tstzspan(DataChunk &args, ExpressionState &s
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input_blob.GetData());
             size_t data_size = input_blob.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_to_tstzspan] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -426,7 +448,7 @@ void TemporalFunctions::Tnumber_to_span(DataChunk &args, ExpressionState &state,
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Tnumber_to_span] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -463,7 +485,7 @@ void TemporalFunctions::Temporal_subtype(DataChunk &args, ExpressionState &state
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_subtype] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -490,7 +512,7 @@ void TemporalFunctions::Temporal_interp(DataChunk &args, ExpressionState &state,
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_interp] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -516,7 +538,7 @@ void TemporalFunctions::Tinstant_value(DataChunk &args, ExpressionState &state, 
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Tinstant_value] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -542,7 +564,7 @@ void TemporalFunctions::Temporal_valueset(DataChunk &args, ExpressionState &stat
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_valueset] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -576,7 +598,7 @@ void TemporalFunctions::Temporal_start_value(DataChunk &args, ExpressionState &s
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_start_value] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -602,7 +624,7 @@ void TemporalFunctions::Temporal_end_value(DataChunk &args, ExpressionState &sta
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_end_value] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -628,7 +650,7 @@ void TemporalFunctions::Temporal_min_value(DataChunk &args, ExpressionState &sta
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_min_value] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -654,7 +676,7 @@ void TemporalFunctions::Temporal_max_value(DataChunk &args, ExpressionState &sta
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_max_value] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -680,7 +702,7 @@ void TemporalFunctions::Temporal_value_n(DataChunk &args, ExpressionState &state
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_value_n] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -713,7 +735,7 @@ void TemporalFunctions::Temporal_min_instant(DataChunk &args, ExpressionState &s
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_min_instant] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -745,7 +767,7 @@ void TemporalFunctions::Temporal_max_instant(DataChunk &args, ExpressionState &s
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_max_instant] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -777,7 +799,7 @@ void TemporalFunctions::Tinstant_timestamptz(DataChunk &args, ExpressionState &s
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Tinstant_timestamptz] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -804,7 +826,7 @@ void TemporalFunctions::Temporal_time(DataChunk &args, ExpressionState &state, V
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_time] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -838,7 +860,7 @@ void TemporalFunctions::Temporal_duration(DataChunk &args, ExpressionState &stat
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_duration] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -867,7 +889,7 @@ void TemporalFunctions::Temporal_sequences(DataChunk &args, ExpressionState &sta
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_sequences] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -911,7 +933,7 @@ void TemporalFunctions::Temporal_start_timestamptz(DataChunk &args, ExpressionSt
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_start_timestamptz] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -950,7 +972,7 @@ void TemporalFunctions::Temporal_to_tsequence(DataChunk &args, ExpressionState &
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_to_tsequence] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -990,7 +1012,7 @@ void TemporalFunctions::Temporal_to_tsequenceset(DataChunk &args, ExpressionStat
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_to_tsequenceset] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -1022,7 +1044,7 @@ void TemporalFunctions::Tnumber_shift_value(DataChunk &args, ExpressionState &st
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Tnumber_shift_value] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -1055,7 +1077,7 @@ void TemporalFunctions::Tnumber_scale_value(DataChunk &args, ExpressionState &st
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Tnumber_scale_value] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -1088,7 +1110,7 @@ void TemporalFunctions::Tnumber_shift_scale_value(DataChunk &args, ExpressionSta
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Tnumber_shift_scale_value] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -1125,7 +1147,7 @@ void TemporalFunctions::Temporal_at_value_tbool(DataChunk &args, ExpressionState
             const uint8_t *data = reinterpret_cast<const uint8_t*>(input.GetData());
             size_t data_size = input.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_at_value_tbool] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -1161,7 +1183,7 @@ void TemporalFunctions::Temporal_at_tstzspan(DataChunk &args, ExpressionState &s
             const uint8_t *data = reinterpret_cast<const uint8_t*>(temp_str.GetData());
             size_t data_size = temp_str.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_at_tstzspan] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -1212,7 +1234,7 @@ void TemporalFunctions::Temporal_at_tstzspanset(DataChunk &args, ExpressionState
             const uint8_t *data = reinterpret_cast<const uint8_t*>(temp_str.GetData());
             size_t data_size = temp_str.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Temporal_at_tstzspanset] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -1266,7 +1288,7 @@ void TemporalFunctions::Tbool_when_true(DataChunk &args, ExpressionState &state,
             const uint8_t *data = reinterpret_cast<const uint8_t*>(temp_str.GetData());
             size_t data_size = temp_str.GetSize();
             if (data_size < sizeof(void*)) {
-                throw InvalidInputException("Invalid Temporal data: insufficient size");
+                throw InvalidInputException("[Tbool_when_true] Invalid Temporal data: insufficient size");
             }
             uint8_t *data_copy = (uint8_t*)malloc(data_size);
             memcpy(data_copy, data, data_size);
@@ -1326,7 +1348,7 @@ void TemporalFunctions::Temporal_dump_common(DataChunk &args, Vector &result, me
         const uint8_t *data = reinterpret_cast<const uint8_t*>(blob.GetData());
         size_t data_size = blob.GetSize();
         if (data_size < sizeof(void*)) {
-            throw InvalidInputException("Invalid Temporal data: insufficient size");
+            throw InvalidInputException("[Temporal_dump_common] Invalid Temporal data: insufficient size");
         }
         uint8_t *data_copy = (uint8_t*)malloc(data_size);
         memcpy(data_copy, data, data_size);

@@ -2,7 +2,9 @@
 #include "common.hpp"
 
 #include "geo/tgeompoint_functions.hpp"
+#include "temporal/temporal_functions.hpp"
 #include "time_util.hpp"
+#include "duckdb/common/types/timestamp.hpp"
 
 #include "duckdb/common/exception.hpp"
 
@@ -119,6 +121,15 @@ void TgeompointFunctions::Tspatial_as_ewkt(DataChunk &args, ExpressionState &sta
 ****************************************************/
 
 void TgeompointFunctions::Tpointinst_constructor(DataChunk &args, ExpressionState &state, Vector &result) {
+    auto row_count = args.size();
+    auto arg_count = args.ColumnCount();
+    int32_t srid = 0;
+    if (arg_count > 2) {
+        auto &srid_child = args.data[2];
+        srid_child.Flatten(row_count);
+        srid = srid_child.GetValue(0).GetValue<int32_t>();
+    }
+    
     BinaryExecutor::Execute<string_t, timestamp_tz_t, string_t>(
         args.data[0], args.data[1], result, args.size(),
         [&](string_t wkb_blob, timestamp_tz_t ts_duckdb) -> string_t {
@@ -128,8 +139,7 @@ void TgeompointFunctions::Tpointinst_constructor(DataChunk &args, ExpressionStat
                 throw InvalidInputException("Empty WKB_BLOB input");
             }
 
-            int32 srid = 0;
-            GSERIALIZED *gs = geo_from_ewkb(wkb_data, wkb_size, srid);
+            GSERIALIZED *gs = geo_from_ewkb(wkb_data, wkb_size, (int32)srid);
             if (!gs) {
                 throw InvalidInputException("Failed to parse WKB_BLOB into a geometry");
             }
@@ -295,6 +305,115 @@ void TgeompointFunctions::Tgeompoint_end_value(DataChunk &args, ExpressionState 
             free(ewkb_data);
             free(temp);
             return stored_result;
+        }
+    );
+    if (args.size() == 1) {
+        result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
+void TgeompointFunctions::Tgeompoint_sequence_constructor(DataChunk &args, ExpressionState &state, Vector &result) {
+    auto &child_vec = ListVector::GetEntry(args.data[0]);
+    auto child_count = ListVector::GetListSize(args.data[0]);
+
+    UnifiedVectorFormat input_vdata;
+    child_vec.ToUnifiedFormat(child_count, input_vdata);
+    
+    auto arg_count = args.ColumnCount();
+    auto row_count = args.size();
+    meosType temptype = TemporalHelpers::GetTemptypeFromAlias(result.GetType().GetAlias().c_str());
+    interpType interp = temptype_continuous(temptype) ? LINEAR : STEP;
+    bool lower_inc = true;
+    bool upper_inc = true;
+
+    if (arg_count > 1) {
+        auto &interp_child = args.data[1];
+        interp_child.Flatten(row_count);
+        auto interp_str = interp_child.GetValue(0).ToString();
+        interp = interptype_from_string(interp_str.c_str());
+    }
+    if (arg_count > 2) {
+        auto &lower_inc_child = args.data[2];
+        lower_inc = lower_inc_child.GetValue(0).GetValue<bool>();
+    }
+    if (arg_count > 3) {
+        auto &upper_inc_child = args.data[3];
+        upper_inc = upper_inc_child.GetValue(0).GetValue<bool>();
+    }
+
+    UnaryExecutor::Execute<list_entry_t, string_t>(
+        args.data[0], result, args.size(),
+        [&](const list_entry_t &entry) {
+            const auto offset = entry.offset;
+            const auto length = entry.length;
+
+            int32_t valid_count = 0;
+            for (idx_t out_idx = offset; out_idx < offset + length; out_idx++) {
+                const auto row_idx = input_vdata.sel->get_index(out_idx);
+                if (!input_vdata.validity.RowIsValid(row_idx)) {
+                    continue;
+                }
+
+                auto &blob = UnifiedVectorFormat::GetData<string_t>(input_vdata)[row_idx];
+                size_t data_size = blob.GetSize();
+                if (data_size < sizeof(void*)) {
+                    continue;
+                }
+                valid_count++;
+            }
+
+            TInstant **instants = (TInstant **)malloc(valid_count * sizeof(TInstant *));
+            if (!instants) {
+                throw InternalException("Memory allocation failed in Tgeompoint_sequence_constructor");
+            }
+
+            idx_t valid_idx = 0;
+            for (idx_t out_idx = offset; out_idx < offset + length; out_idx++) {
+                const auto row_idx = input_vdata.sel->get_index(out_idx);
+                if (!input_vdata.validity.RowIsValid(row_idx)) {
+                    continue;
+                }
+
+                auto &blob = UnifiedVectorFormat::GetData<string_t>(input_vdata)[row_idx];
+                const uint8_t *data = reinterpret_cast<const uint8_t*>(blob.GetData());
+                size_t data_size = blob.GetSize();
+                if (data_size < sizeof(void*)) {
+                    continue;
+                }
+                uint8_t *data_copy = (uint8_t*)malloc(data_size);
+                memcpy(data_copy, data, data_size);
+                Temporal *temp = reinterpret_cast<Temporal*>(data_copy);
+
+                if (!temp) {
+                    free(data_copy);
+                    throw InvalidInputException("Failure in Tgeompoint_sequence_constructor: unable to convert WKB to temporal");
+                }
+                instants[valid_idx] = (TInstant*)temp;
+                valid_idx++;
+            }
+
+            TSequence *seq = tsequence_make((const TInstant **)instants, valid_count,
+                lower_inc, upper_inc, interp, true);
+            if (!seq) {
+                for (idx_t j = 0; j < valid_count; j++) {
+                    free(instants[j]);
+                }
+                free(instants);
+                throw InternalException("Failure in Tgeompoint_sequence_constructor: unable to create sequence");
+            }
+
+            size_t temp_size = temporal_mem_size((Temporal*)seq);
+            uint8_t *temp_data = (uint8_t*)malloc(temp_size);
+            memcpy(temp_data, (Temporal*)seq, temp_size);
+            string_t result_str(reinterpret_cast<char*>(temp_data), temp_size);
+            string_t stored_data = StringVector::AddStringOrBlob(result, result_str);
+            free(seq);
+            for (idx_t j = 0; j < valid_count; j++) {
+                free(instants[j]);
+            }
+            free(instants);
+            free(temp_data);
+            return stored_data;
         }
     );
     if (args.size() == 1) {

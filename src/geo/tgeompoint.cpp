@@ -103,10 +103,21 @@ void TgeompointType::RegisterScalarFunctions(DatabaseInstance &instance) {
     ExtensionUtil::RegisterFunction(
         instance,
         ScalarFunction(
+            "TGEOMPOINT",
+            {WKB_BLOB(), LogicalType::TIMESTAMP_TZ, LogicalType::INTEGER}, // with SRID
+            TGEOMPOINT(),
+            TgeompointFunctions::Tpointinst_constructor
+        )
+    );
+
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
             "tgeompointSeq",
             {LogicalType::LIST(TGEOMPOINT())},
             TGEOMPOINT(),
-            TemporalFunctions::Tsequence_constructor
+            // TemporalFunctions::Tsequence_constructor
+            TgeompointFunctions::Tgeompoint_sequence_constructor
         )
     );
 
