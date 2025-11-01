@@ -376,8 +376,18 @@ void TgeompointType::RegisterScalarFunctions(DatabaseInstance &instance) {
     );
 
      /* ***************************************************
-     * Distance function
+     * Distance functions
      ****************************************************/
+
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "<->",
+            {TGEOMPOINT(), TGEOMPOINT()},
+            TemporalTypes::TFLOAT(),
+            TgeompointFunctions::Tdistance_tgeo_tgeo
+        )
+    );
     
     // ExtensionUtil::RegisterFunction(
     //     instance,

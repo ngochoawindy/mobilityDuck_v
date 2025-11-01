@@ -95,6 +95,11 @@ struct TemporalFunctions {
     template <typename T>
     static void Temporal_dump_common(DataChunk &args, Vector &result, meosType basetype);
     static void Temporal_dump(DataChunk &args, ExpressionState &state, Vector &result);
+
+    /* ***************************************************
+     * Math functions
+     ****************************************************/
+    static void Temporal_round(DataChunk &args, ExpressionState &state, Vector &result);
 };
 
 } // namespace duckdb

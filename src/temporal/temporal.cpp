@@ -486,6 +486,26 @@ void TemporalTypes::RegisterScalarFunctions(DatabaseInstance &instance) {
             TemporalFunctions::Tnumber_at_span
         )
     );
+
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "round",
+            {TemporalTypes::TFLOAT()},
+            TemporalTypes::TFLOAT(),
+            TemporalFunctions::Temporal_round
+        )
+    );
+
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "round",
+            {TemporalTypes::TFLOAT(), LogicalType::INTEGER},
+            TemporalTypes::TFLOAT(),
+            TemporalFunctions::Temporal_round
+        )
+    );
 }
 
 struct TemporalUnnestBindData : public TableFunctionData {
