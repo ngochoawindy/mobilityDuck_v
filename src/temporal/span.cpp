@@ -208,7 +208,9 @@ void SpanTypes::RegisterScalarFunctions(DatabaseInstance &db) {
             );
         }
 
-
+        ExtensionUtil::RegisterFunction(
+            db, ScalarFunction("*", {span_type, span_type}, span_type, SpanFunctions::Intersection_span_span)
+        );
     }
 }
 
@@ -740,6 +742,56 @@ void SpanFunctions::Contains_tstzspan_timestamptz(DataChunk &args, ExpressionSta
             bool ret = contains_span_value(span, Datum(ts_meos.value));
             free(span_data_copy);
             return ret;
+        }
+    );
+    if (args.size() == 1) {
+        result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
+// --- OPERATOR: tstzspan * tstzspan ---
+void SpanFunctions::Intersection_span_span(DataChunk &args, ExpressionState &state, Vector &result) {
+    BinaryExecutor::ExecuteWithNulls<string_t, string_t, string_t>(
+        args.data[0], args.data[1], result, args.size(),
+        [&](string_t span1_blob, string_t span2_blob, ValidityMask &mask, idx_t idx) -> string_t {
+            const uint8_t *span1_data = reinterpret_cast<const uint8_t*>(span1_blob.GetData());
+            size_t span1_data_size = span1_blob.GetSize();
+            uint8_t *span1_data_copy = (uint8_t*)malloc(span1_data_size);
+            memcpy(span1_data_copy, span1_data, span1_data_size);
+            Span *span1 = reinterpret_cast<Span*>(span1_data_copy);
+            if (!span1) {
+                free(span1_data_copy);
+                throw InvalidInputException("Invalid TSTZSPAN data: null pointer");
+            }
+
+            const uint8_t *span2_data = reinterpret_cast<const uint8_t*>(span2_blob.GetData());
+            size_t span2_data_size = span2_blob.GetSize();
+            uint8_t *span2_data_copy = (uint8_t*)malloc(span2_data_size);
+            memcpy(span2_data_copy, span2_data, span2_data_size);
+            Span *span2 = reinterpret_cast<Span*>(span2_data_copy);
+            if (!span2) {
+                free(span2_data_copy);
+                throw InvalidInputException("Invalid TSTZSPAN data: null pointer");
+            }
+
+            Span *ret = intersection_span_span(span1, span2);
+            if (!ret) {
+                free(span1);
+                free(span2);
+                mask.SetInvalid(idx);
+                return string_t();
+            }
+
+            size_t span_size = sizeof(*ret);
+            uint8_t *span_buffer = (uint8_t*) malloc(span_size);
+            memcpy(span_buffer, ret, span_size);
+            string_t span_string_t((char *) span_buffer, span_size);
+            string_t stored_data = StringVector::AddStringOrBlob(result, span_string_t);
+            free(span_buffer);
+            free(ret);
+            free(span1);
+            free(span2);
+            return stored_data;
         }
     );
     if (args.size() == 1) {

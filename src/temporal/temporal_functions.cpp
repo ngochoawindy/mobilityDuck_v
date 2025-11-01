@@ -953,6 +953,49 @@ void TemporalFunctions::Temporal_start_timestamptz(DataChunk &args, ExpressionSt
     }
 }
 
+void TemporalFunctions::Temporal_instants(DataChunk &args, ExpressionState &state, Vector &result) {
+    idx_t total_count = 0;
+    UnaryExecutor::Execute<string_t, list_entry_t>(
+        args.data[0], result, args.size(),
+        [&](string_t temp_str) -> list_entry_t {
+            const uint8_t *data = reinterpret_cast<const uint8_t*>(temp_str.GetData());
+            size_t data_size = temp_str.GetSize();
+            if (data_size < sizeof(void*)) {
+                throw InvalidInputException("[Temporal_instants] Invalid Temporal data: insufficient size");
+            }
+            uint8_t *data_copy = (uint8_t*)malloc(data_size);
+            memcpy(data_copy, data, data_size);
+            Temporal *temp = reinterpret_cast<Temporal*>(data_copy);
+            if (!temp) {
+                free(data_copy);
+                throw InternalException("Failure in Temporal_instants: unable to cast string to temporal");
+            }
+
+            int inst_count;
+            const TInstant **instants = temporal_instants_p(temp, &inst_count);
+            const auto entry = list_entry_t(total_count, inst_count);
+            total_count += inst_count;
+            ListVector::Reserve(result, total_count);
+
+            auto &inst_vec = ListVector::GetEntry(result);
+            const auto inst_data = FlatVector::GetData<string_t>(inst_vec);
+
+            for (idx_t i = 0; i < inst_count; i++) {
+                const TInstant *inst = instants[i];
+                size_t temp_size = temporal_mem_size((Temporal*)inst);
+                uint8_t *temp_data = (uint8_t*)malloc(temp_size);
+                memcpy(temp_data, (Temporal*)inst, temp_size);
+                string_t ret_str(reinterpret_cast<const char*>(temp_data), temp_size);
+                inst_data[entry.offset + i] = ret_str;
+            }
+            free(instants);
+            free(temp);
+            return entry;
+        }
+    );
+    ListVector::SetListSize(result, total_count);
+}
+
 /* ***************************************************
  * Transformation functions
  ****************************************************/
