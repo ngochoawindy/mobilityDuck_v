@@ -184,6 +184,16 @@ void TemporalTypes::RegisterScalarFunctions(DatabaseInstance &instance) {
                     TemporalFunctions::Temporal_max_instant
                 )
             );
+
+            ExtensionUtil::RegisterFunction(
+                instance,
+                ScalarFunction(
+                    "atMin",
+                    {type},
+                    type,
+                    TemporalFunctions::Temporal_at_min
+                )
+            );
         }
 
         ExtensionUtil::RegisterFunction(
