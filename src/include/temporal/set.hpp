@@ -68,6 +68,9 @@ struct SetFunctions{
     static void Textset_lower(DataChunk &args, ExpressionState &state, Vector &result);
     static void Textset_upper(DataChunk &args, ExpressionState &state, Vector &result);
     static void Textset_initcap(DataChunk &args, ExpressionState &state, Vector &result);
+
+    // operators
+    static void Union_set_set(DataChunk &args, ExpressionState &state, Vector &result);
 };
 
 struct SetTypeMapping {

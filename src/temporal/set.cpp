@@ -339,7 +339,11 @@ void SetTypes::RegisterScalarFunctions(DatabaseInstance &db) {
             db,
             ScalarFunction("initcap", {SetTypes::textset()}, SetTypes::textset(), SetFunctions::Textset_initcap)
         );
-        
+
+        ExtensionUtil::RegisterFunction(
+            db,
+            ScalarFunction("+", {set_type, set_type}, set_type, SetFunctions::Union_set_set)
+        );
     }
 }
 
@@ -1532,6 +1536,53 @@ void SetFunctions::Textset_initcap(DataChunk &args, ExpressionState &state, Vect
             free(r);
             return out;            
         });
+}
+
+// --- Union: set + set ---
+void SetFunctions::Union_set_set(DataChunk &args, ExpressionState &state, Vector &result) {
+    BinaryExecutor::ExecuteWithNulls<string_t, string_t, string_t>(
+        args.data[0], args.data[1], result, args.size(),
+        [&](string_t set1_str, string_t set2_str, ValidityMask &mask, idx_t idx) -> string_t {
+            Set *set1 = nullptr;
+            if (set1_str.GetSize() > 0) {
+                set1 = (Set*)malloc(set1_str.GetSize());
+                memcpy(set1, set1_str.GetData(), set1_str.GetSize());
+            }
+            if (!set1) {
+                throw InternalException("Failure in Union_set_set: unable to cast string to set");
+            }
+
+            Set *set2 = nullptr;
+            if (set2_str.GetSize() > 0) {
+                set2 = (Set*)malloc(set2_str.GetSize());
+                memcpy(set2, set2_str.GetData(), set2_str.GetSize());
+            }
+            if (!set2) {
+                throw InternalException("Failure in Union_set_set: unable to cast string to set");
+            }
+
+            Set *ret = union_set_set(set1, set2);
+            if (!ret) {
+                free(set1);
+                free(set2);
+                mask.SetInvalid(idx);
+                return string_t();
+            }
+            size_t set_size = set_mem_size(ret);
+            uint8_t *set_data = (uint8_t*)malloc(set_size);
+            memcpy(set_data, ret, set_size);
+            string_t ret_str(reinterpret_cast<const char*>(set_data), set_size);
+            string_t stored_data = StringVector::AddStringOrBlob(result, ret_str);
+
+            free(ret);
+            free(set1);
+            free(set2);
+            return stored_data;
+        }
+    );
+    if (args.size() == 1) {
+        result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
 }
 
 // --- Unnest ---
