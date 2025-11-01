@@ -44,12 +44,14 @@ struct TgeompointFunctions {
     /* ***************************************************
      * Accessor functions
      ****************************************************/
+    static void Tgeompoint_value(DataChunk &args, ExpressionState &state, Vector &result);
     // timestamps: Temporal_timestamps
 
     /* ***************************************************
      * Restriction functions
      ****************************************************/
     static void Tgeompoint_at_value(DataChunk &args, ExpressionState &state, Vector &result);
+    // atTime(tgeompoint, timestamptz): Temporal_at_timestamptz
     // atTime(tgeompoint, tstzspan): Temporal_at_tstzspan
     // atTime(tgeompoint, tstzspanset): Temporal_at_tstzspanset
     static void Tgeompoint_value_at_timestamptz(DataChunk &args, ExpressionState &state, Vector &result);

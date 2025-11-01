@@ -82,6 +82,7 @@ struct TemporalFunctions {
      * Restriction functions
      ****************************************************/
     static void Temporal_at_value_tbool(DataChunk &args, ExpressionState &state, Vector &result);
+    static void Temporal_at_timestamptz(DataChunk &args, ExpressionState &state, Vector &result);
     static void Temporal_at_tstzspan(DataChunk &args, ExpressionState &state, Vector &result);
     static void Temporal_at_tstzspanset(DataChunk &args, ExpressionState &state, Vector &result);
     static void Tnumber_at_span(DataChunk &args, ExpressionState &state, Vector &result);

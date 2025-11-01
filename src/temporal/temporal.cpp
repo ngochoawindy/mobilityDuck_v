@@ -412,6 +412,16 @@ void TemporalTypes::RegisterScalarFunctions(DatabaseInstance &instance) {
             instance,
             ScalarFunction(
                 "atTime",
+                {type, LogicalType::TIMESTAMP_TZ},
+                type,
+                TemporalFunctions::Temporal_at_timestamptz
+            )
+        );
+
+        ExtensionUtil::RegisterFunction(
+            instance,
+            ScalarFunction(
+                "atTime",
                 {type, SpanTypes::TSTZSPAN()},
                 type,
                 TemporalFunctions::Temporal_at_tstzspan

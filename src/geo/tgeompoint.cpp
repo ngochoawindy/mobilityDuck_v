@@ -201,6 +201,16 @@ void TgeompointType::RegisterScalarFunctions(DatabaseInstance &instance) {
     ExtensionUtil::RegisterFunction(
         instance,
         ScalarFunction(
+            "getValue",
+            {TGEOMPOINT()},
+            WKB_BLOB(),
+            TgeompointFunctions::Tgeompoint_value
+        )
+    );
+    
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
             "timestamps",
             {TGEOMPOINT()},
             LogicalType::LIST(LogicalType::TIMESTAMP_TZ),
@@ -222,6 +232,16 @@ void TgeompointType::RegisterScalarFunctions(DatabaseInstance &instance) {
         )
     );
 
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "atTime",
+            {TGEOMPOINT(), LogicalType::TIMESTAMP_TZ},
+            TGEOMPOINT(),
+            TemporalFunctions::Temporal_at_timestamptz
+        )
+    );
+    
     ExtensionUtil::RegisterFunction(
         instance,
         ScalarFunction(

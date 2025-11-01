@@ -1263,6 +1263,47 @@ void TemporalFunctions::Temporal_at_value_tbool(DataChunk &args, ExpressionState
     }
 }
 
+void TemporalFunctions::Temporal_at_timestamptz(DataChunk &args, ExpressionState &state, Vector &result) {
+    BinaryExecutor::ExecuteWithNulls<string_t, timestamp_tz_t, string_t>(
+        args.data[0], args.data[1], result, args.size(),
+        [&](string_t temp_str, timestamp_tz_t ts, ValidityMask &mask, idx_t idx) -> string_t {
+            const uint8_t *data = reinterpret_cast<const uint8_t*>(temp_str.GetData());
+            size_t data_size = temp_str.GetSize();
+            if (data_size < sizeof(void*)) {
+                throw InvalidInputException("[Temporal_at_timestamptz] Invalid Temporal data: insufficient size");
+            }
+            uint8_t *data_copy = (uint8_t*)malloc(data_size);
+            memcpy(data_copy, data, data_size);
+            Temporal *temp = reinterpret_cast<Temporal*>(data_copy);
+            if (!temp) {
+                free(data_copy);
+                throw InternalException("Failure in Temporal_at_timestamptz: unable to cast string to temporal");
+            }
+
+            timestamp_tz_t meos_ts = DuckDBToMeosTimestamp(ts);
+            Temporal *ret = temporal_restrict_timestamptz(temp, (TimestampTz)meos_ts.value, true);
+            if (!ret) {
+                free(temp);
+                mask.SetInvalid(idx);
+                return string_t();
+            }
+            size_t temp_size = temporal_mem_size(ret);
+            uint8_t *temp_data = (uint8_t*)malloc(temp_size);
+            memcpy(temp_data, ret, temp_size);
+            string_t ret_str(reinterpret_cast<const char*>(temp_data), temp_size);
+            string_t stored_data = StringVector::AddStringOrBlob(result, ret_str);
+            
+            free(temp_data);
+            free(ret);
+            free(temp);
+            return stored_data;
+        }
+    );
+    if (args.size() == 1) {
+        result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
 void TemporalFunctions::Temporal_at_tstzspan(DataChunk &args, ExpressionState &state, Vector &result) {
     BinaryExecutor::ExecuteWithNulls<string_t, string_t, string_t>(
         args.data[0], args.data[1], result, args.size(),

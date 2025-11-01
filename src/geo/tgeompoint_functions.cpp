@@ -469,6 +469,57 @@ bool TgeompointFunctions::Temporal_to_tstzspan_cast(Vector &source, Vector &resu
 }
 
 /* ***************************************************
+ * Accessor functions
+ ****************************************************/
+
+void TgeompointFunctions::Tgeompoint_value(DataChunk &args, ExpressionState &state, Vector &result) {
+    // Adapted from Tinstant_value
+    UnaryExecutor::Execute<string_t, string_t>(
+        args.data[0], result, args.size(),
+        [&](string_t tgeom_blob) -> string_t {
+            const uint8_t *tgeom_data = reinterpret_cast<const uint8_t*>(tgeom_blob.GetData());
+            size_t tgeom_data_size = tgeom_blob.GetSize();
+            uint8_t *tgeom_data_copy = (uint8_t*)malloc(tgeom_data_size);
+            memcpy(tgeom_data_copy, tgeom_data, tgeom_data_size);
+            Temporal *temp = reinterpret_cast<Temporal*>(tgeom_data_copy);
+            if (!temp) {
+                free(tgeom_data_copy);
+                throw InvalidInputException("Invalid TGEOMPOINT data: null pointer");
+            }
+            if (temp->subtype != TINSTANT) {
+                free(temp);
+                throw InvalidInputException("The temporal value must be of subtype Instant");
+            }
+            Datum ret = tinstant_value((TInstant*)temp);
+            GSERIALIZED *gs = DatumGetGserializedP(ret);
+            if (!gs) {
+                free(temp);
+                throw InvalidInputException("Failed to get geometry from datum");
+            }
+
+            size_t ewkb_size;
+            uint8_t *ewkb_data = geo_as_ewkb(gs, NULL, &ewkb_size);
+            if (!ewkb_data) {
+                free(temp);
+                free(gs);
+                throw InvalidInputException("Failed to convert geometry to EWKB");
+            }
+
+            string_t ewkb_string(reinterpret_cast<const char*>(ewkb_data), ewkb_size);
+            string_t stored_data = StringVector::AddStringOrBlob(result, ewkb_string);
+
+            free(ewkb_data);
+            free(gs);
+            free(temp);
+            return stored_data;
+        }
+    );
+    if (args.size() == 1) {
+        result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
+/* ***************************************************
  * Restriction functions
  ****************************************************/
 
