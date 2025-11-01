@@ -466,6 +466,26 @@ void TemporalTypes::RegisterScalarFunctions(DatabaseInstance &instance) {
             TemporalFunctions::Tbool_when_true
         )
     );
+
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "atValues",
+            {TemporalTypes::TINT(), SpanTypes::INTSPAN()},
+            TemporalTypes::TINT(),
+            TemporalFunctions::Tnumber_at_span
+        )
+    );
+
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "atValues",
+            {TemporalTypes::TFLOAT(), SpanTypes::FLOATSPAN()},
+            TemporalTypes::TFLOAT(),
+            TemporalFunctions::Tnumber_at_span
+        )
+    );
 }
 
 struct TemporalUnnestBindData : public TableFunctionData {

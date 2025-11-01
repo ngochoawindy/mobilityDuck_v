@@ -489,7 +489,7 @@ void TgeompointFunctions::Tgeompoint_at_value(DataChunk &args, ExpressionState &
 
             const uint8_t *wkb_data = reinterpret_cast<const uint8_t*>(wkb_blob.GetData());
             size_t wkb_size = wkb_blob.GetSize();
-            int32 srid = 0;
+            int32 srid = tspatial_srid(temp);
             GSERIALIZED *gs = geo_from_ewkb(wkb_data, wkb_size, srid);
             if (!gs) {
                 free(temp);
@@ -691,7 +691,7 @@ void TgeompointFunctions::Tgeo_at_geom(DataChunk &args, ExpressionState &state, 
 
             const uint8_t *wkb_data = reinterpret_cast<const uint8_t*>(wkb_blob.GetData());
             size_t wkb_size = wkb_blob.GetSize();
-            int32 srid = 0;
+            int32 srid = tspatial_srid(tgeom);
             GSERIALIZED *gs = geo_from_ewkb(wkb_data, wkb_size, srid);
             if (!gs) {
                 free(tgeom);
@@ -836,6 +836,47 @@ void TgeompointFunctions::Edwithin_tgeo_tgeo(DataChunk &args, ExpressionState &s
             int ret = edwithin_tgeo_tgeo(tgeom1, tgeom2, dist);
             free(tgeom1);
             free(tgeom2);
+            if (ret < 0) {
+                mask.SetInvalid(idx);
+                return false;
+            }
+            return ret;
+        }
+    );
+    if (args.size() == 1) {
+        result.SetVectorType(VectorType::CONSTANT_VECTOR);
+    }
+}
+
+void TgeompointFunctions::Eintersects_tgeo_geo(DataChunk &args, ExpressionState &state, Vector &result) {
+    BinaryExecutor::ExecuteWithNulls<string_t, string_t, bool>(
+        args.data[0], args.data[1], result, args.size(),
+        [&](string_t tgeom_blob, string_t wkb_blob, ValidityMask &mask, idx_t idx) -> bool {
+            const uint8_t *tgeom_data = reinterpret_cast<const uint8_t*>(tgeom_blob.GetData());
+            size_t tgeom_data_size = tgeom_blob.GetSize();
+            uint8_t *tgeom_data_copy = (uint8_t*)malloc(tgeom_data_size);
+            memcpy(tgeom_data_copy, tgeom_data, tgeom_data_size);
+            Temporal *tgeom = reinterpret_cast<Temporal*>(tgeom_data_copy);
+            if (!tgeom) {
+                free(tgeom_data_copy);
+                throw InvalidInputException("Invalid TGEOMPOINT data: null pointer");
+            }
+
+            const uint8_t *wkb_data = reinterpret_cast<const uint8_t*>(wkb_blob.GetData());
+            size_t wkb_size = wkb_blob.GetSize();
+            if (!wkb_data || wkb_size == 0) {
+                throw InvalidInputException("Empty WKB_BLOB input");
+            }
+
+            int32 srid = tspatial_srid(tgeom);
+            GSERIALIZED *gs = geo_from_ewkb(wkb_data, wkb_size, (int32)srid);
+            if (!gs) {
+                throw InvalidInputException("Failed to parse WKB_BLOB into a geometry");
+            }
+
+            int ret = eintersects_tgeo_geo(tgeom, gs);
+            free(tgeom);
+            free(gs);
             if (ret < 0) {
                 mask.SetInvalid(idx);
                 return false;

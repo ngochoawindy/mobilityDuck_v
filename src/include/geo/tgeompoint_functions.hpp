@@ -63,6 +63,7 @@ struct TgeompointFunctions {
      ****************************************************/
     static void Adisjoint_tgeo_tgeo(DataChunk &args, ExpressionState &state, Vector &result);
     static void Edwithin_tgeo_tgeo(DataChunk &args, ExpressionState &state, Vector &result);
+    static void Eintersects_tgeo_geo(DataChunk &args, ExpressionState &state, Vector &result);
 
     /* ***************************************************
      * Temporal-spatial relationships

@@ -205,6 +205,16 @@ SELECT eDwithin(tgeompoint '[Point(1 1)@2000-01-01, Point(2 2)@2000-01-02]', tge
 true
 
 query I
+SELECT eIntersects(tgeompoint '{[Point(1 1)@2000-01-01, Point(2 2)@2000-01-02, Point(1 1)@2000-01-03],[Point(3 3)@2000-01-04, Point(3 3)@2000-01-05]}',  geometry 'Point(1 1)'::WKB_BLOB);
+----
+true
+
+query I
+SELECT eIntersects(tgeompoint '{[Point(10 10)@2000-01-01, Point(20 20)@2000-01-02, Point(10 10)@2000-01-03],[Point(3 3)@2000-01-04, Point(3 3)@2000-01-05]}',  geometry 'Point(1 1)'::WKB_BLOB);
+----
+false
+
+query I
 SELECT tDwithin(tgeompoint '{Point(1 1)@2000-01-01, Point(2 2)@2000-01-02, Point(1 1)@2000-01-03}', tgeompoint 'Point(1 1)@2000-01-01', 2);
 ----
 t@2000-01-01 00:00:00+00

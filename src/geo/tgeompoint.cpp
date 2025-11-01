@@ -317,6 +317,16 @@ void TgeompointType::RegisterScalarFunctions(DatabaseInstance &instance) {
         )
     );
 
+    ExtensionUtil::RegisterFunction(
+        instance,
+        ScalarFunction(
+            "eIntersects",
+            {TGEOMPOINT(), WKB_BLOB()},
+            LogicalType::BOOLEAN,
+            TgeompointFunctions::Eintersects_tgeo_geo
+        )
+    );
+
     /* ***************************************************
      * Temporal-spatial relationships
      ****************************************************/
