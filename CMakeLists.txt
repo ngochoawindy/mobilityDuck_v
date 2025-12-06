@@ -195,11 +195,6 @@ target_link_libraries(${LOADABLE_EXTENSION_NAME}
   OpenSSL::Crypto
 )
 
-if(WIN32)
-  # target_link_libraries(${EXTENSION_NAME} ws2_32 crypt32)
-  # target_link_libraries(${LOADABLE_EXTENSION_NAME} ws2_32 crypt32)
-endif()
-
 # -----------------------------
 # Install (static & loadable)
 # -----------------------------

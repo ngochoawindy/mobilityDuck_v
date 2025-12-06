@@ -23,17 +23,10 @@
 #include <fstream>
 #include <cstdlib>
 #include <string>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#if defined(_WIN32)
-  #include <sys/types.h>
-  #include <sys/stat.h>
-  #include <io.h>
-  #define stat _stat
-#else
-  #include <sys/types.h>
-  #include <sys/stat.h>
-  #include <unistd.h>
-#endif
 
 extern "C" {
     #include <stdarg.h>
