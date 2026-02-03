@@ -1,16 +1,58 @@
 {
         "dependencies": [
+          "vcpkg-cmake",
+          "openssl",
+          "zlib",
           "geos",
-          "proj",
+          "expat",
           "json-c",
           "gsl",
-          { "name": "meos", "version>=": "0" }
+          {
+            "name": "sqlite3",
+            "features": ["rtree"],
+            "default-features": false
+          },
+          {
+            "name": "proj",
+            "default-features": false,
+            "version>=": "9.1.1"
+          },
+          {
+            "name": "curl",
+            "platform": "!wasm32 & !ios & !android",
+            "features": ["openssl"],
+            "default-features": false
+          },
+          {
+            "name": "gdal",
+            "version>=": "3.8.5",
+            "features": [
+              {
+                "name": "network",
+                "platform": "!wasm32 & !ios & !android"
+              },
+              "geos"
+            ]
+          },
+          {
+            "name": "meos",
+            "version>=": "0"
+          }
         ],
-        "builtin-baseline": "6603e6392c5a1474ce2d7d0574eb774ab43a3236",
+        "builtin-baseline": "ce613c41372b23b1f51333815feb3edd87ef8a8b",
         "vcpkg-configuration": {
-                "overlay-ports": [
-                        "./extension-ci-tools/vcpkg_ports",
-                        "./vcpkg_ports"
-                ]
+          "overlay-ports": [
+            "./extension-ci-tools/vcpkg_ports",
+            "./vcpkg_ports"
+          ],
+          "registries": [
+            {
+              "kind": "git",
+              "repository": "https://github.com/duckdb/vcpkg-duckdb-ports",
+              "baseline": "3c7b96fa186c27eae2226a1b5b292f2b2dd3cf8f",
+              "packages": [ "vcpkg-cmake" ]
+            }
+          ]
         }
-}
+      }
+      

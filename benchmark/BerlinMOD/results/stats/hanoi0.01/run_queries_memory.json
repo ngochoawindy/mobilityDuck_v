@@ -1,0 +1,72 @@
+{
+    "query_1.sql": {
+        "elapsed": 637.2950077056885,
+        "row_count": 16,
+        "max_rss_kb": 147172
+    },
+    "query_2.sql": {
+        "elapsed": 655.05051612854,
+        "row_count": 16,
+        "max_rss_kb": 437908
+    },
+    "query_3.sql": {
+        "elapsed": 408.3590507507324,
+        "row_count": 0,
+        "max_rss_kb": 67992
+    },
+    "query_4.sql": {
+        "elapsed": 6292.127847671509,
+        "row_count": 0,
+        "max_rss_kb": 1882784
+    },
+    "query_5.sql": {
+        "elapsed": 408.1387519836426,
+        "row_count": 0,
+        "max_rss_kb": 68368
+    },
+    "query_6.sql": {
+        "elapsed": 4789.900541305542,
+        "row_count": 0,
+        "max_rss_kb": 1613080
+    },
+    "query_7.sql": {
+        "elapsed": 185628.43537330627,
+        "row_count": 99,
+        "max_rss_kb": 13810876
+    },
+    "query_8.sql": {
+        "elapsed": 25205.498456954956,
+        "row_count": 99,
+        "max_rss_kb": 2016496
+    },
+    "query_9.sql": {
+        "elapsed": 5555.084228515625,
+        "row_count": 208,
+        "max_rss_kb": 572956
+    },
+    "query_10.sql": {
+        "elapsed": 23408.292770385742,
+        "row_count": 208,
+        "max_rss_kb": 1715988
+    },
+    "query_11.sql": {
+        "elapsed": 7487.032890319824,
+        "row_count": 1,
+        "max_rss_kb": 1758592
+    },
+    "query_12.sql": {
+        "elapsed": 6811.912298202515,
+        "row_count": 1,
+        "max_rss_kb": 1554344
+    },
+    "query_13.sql": {
+        "elapsed": 421.1761951446533,
+        "row_count": 0,
+        "max_rss_kb": 64652
+    },
+    "query_14.sql": {
+        "elapsed": 4289.992094039917,
+        "row_count": 0,
+        "max_rss_kb": 1879080
+    }
+}

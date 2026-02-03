@@ -30,9 +30,16 @@ find_package(PROJ CONFIG REQUIRED)
 find_package(GSL REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(json-c CONFIG QUIET)
+find_package(ZLIB REQUIRED)
+find_package(GDAL CONFIG REQUIRED)
+find_package(EXPAT REQUIRED)
+find_package(unofficial-sqlite3 CONFIG REQUIRED)
 if(NOT json-c_FOUND)
   find_package(JSON-C REQUIRED)
 endif()
+
+set(EXTENSION_DEPENDENCIES GDAL::GDAL PROJ::proj EXPAT::EXPAT
+                           unofficial::sqlite3::sqlite3 ZLIB::ZLIB)
 
 # MEOS from overlay port
 find_package(MEOS CONFIG REQUIRED)
@@ -50,32 +57,18 @@ endif()
 # -----------------------------
 set(EXTENSION_NAME ${TARGET_NAME}_extension)
 set(LOADABLE_EXTENSION_NAME ${TARGET_NAME}_loadable_extension)
-
+add_subdirectory(src/spatial)
+add_subdirectory(src/sgl)
+include_directories(src)
 include_directories(src/include)
+include_directories(src/third_party/yyjson/include)
+add_subdirectory(src/third_party/yyjson)
 
-set(EXTENSION_SOURCES
-    src/spatial_ref_sys_csv.inc
-    src/mobilityduck_extension.cpp        
-    src/temporal/temporal.cpp
-    src/temporal/temporal_functions.cpp
-    src/temporal/tbox.cpp
-    src/temporal/tbox_functions.cpp
-    src/geo/stbox.cpp
-    src/geo/stbox_functions.cpp
-    src/geo/tgeompoint.cpp
-    src/geo/tgeompoint_functions.cpp
-    src/temporal/set.cpp
-    src/temporal/span.cpp
-    src/geo/geoset.cpp
-    src/temporal/spanset.cpp
-    src/geo/tgeometry.cpp
-    src/geo/tgeometry_in_out.cpp
-    src/index/rtree_module.cpp
-    src/index/rtree_index_create_physical.cpp
-    src/index/rtree_index_scan.cpp
-    src/index/rtree_optimize_scan.cpp
-)
+include_directories(src/third_party/protozero/include)
 
+include_directories(src/third_party/shapelib)
+add_subdirectory(src/third_party/shapelib)
+add_library(${EXTENSION_NAME} STATIC ${EXTENSION_SOURCES})
 build_static_extension(${TARGET_NAME} ${EXTENSION_SOURCES})
 build_loadable_extension(${TARGET_NAME} "" ${EXTENSION_SOURCES})
 
